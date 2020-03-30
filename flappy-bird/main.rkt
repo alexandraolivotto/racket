@@ -6,6 +6,7 @@
 (require lang/posn)
 
 (require "random.rkt")
+(make-predictive '(42) )
 (require "abilities.rkt")
 (require "constants.rkt")
 ;---------------------------------------checker_exports------------------------------------------------
@@ -89,7 +90,7 @@
 
 (define birdo (bird-struct bird-x bird-initial-y 0))
 
-(define pipel (pipe scene-width (+ added-number (random random-threshold))))
+(define pipel (pipe scene-width (+ added-number (random random-threshold))));
 
 (define initial-state (state birdo (list pipel) 0))
 
@@ -145,7 +146,6 @@
 (define (get-bird-v-y bird)
   (bird-struct-v-y bird))
 
- (get-bird-v-y (next-state-bird birdo initial-gravity))
 ;TODO 6
 ; Dorim să existe un mod prin care să imprimăm păsării un impuls.
 ; Definiți funcția next-state-bird-onspace care va primi drept parametri
@@ -153,9 +153,9 @@
 ; pe y a păsării cu -momentum.
 (define (next-state-bird-onspace bird momentum)
   (match-let ([(bird-struct _ _ v-y) bird])
-  (struct-copy bird-struct bird [v-y (- v-y (+ v-y momentum))]))
-)
-
+  (struct-copy bird-struct bird [v-y (- v-y (+ v-y momentum))])))
+;ce e cu viteza? e bine ca am calculat pe foaie; e inlocuita total cu momentum ca adun si scad v-y
+;frt daca astea erau problema creca picau si alte teste nu doar cand era vorba de desen LASA LE
 ; Change
 ; Change va fi responsabil de input-ul de la tastatură al jocului.
 ;TODO 7
@@ -173,12 +173,12 @@
 ; implementați getterul get-pipes, care va extrage din starea jocului mulțimea de pipes,
 ; sub formă de lista.
 (define (get-pipes state)
-  `(state-pipe-list state))
+  (state-pipe-list state))
 
 ;TODO 10
 ; Implementați get-pipe-x ce va extrage dintr-o singură structura de tip pipe, x-ul acesteia.
 (define(get-pipe-x pipe)
-  `(pipe-gap-x pipe))
+  (pipe-gap-x pipe))
 
 ;TODO 11
 ; Trebuie să implementăm logica prin care se mișcă pipes.
@@ -186,7 +186,8 @@
 ; și scroll-speed(un număr real). Aceasta va scădea din x-ul fiecărui pipe
 ; scroll-speed-ul dat.
 (define (move-pipes pipes scroll-speed)
-  pipes)
+  (map (lambda (a-pipe) (match-let([(pipe gap-x _) a-pipe])
+                          (struct-copy pipe a-pipe [gap-x (- gap-x scroll-speed)]))) pipes))
 
 ;TODO 12
 ; Vom implementa logica prin care pipe-urile vor fi șterse din stare. În momentul
@@ -196,7 +197,8 @@
 ;
 ; Hint: cunoaștem lățimea unui pipe, pipe-width
 (define (clean-pipes pipes)
-  pipes)
+   (filter (lambda (a-pipe) (match-let([(pipe gap-x _) a-pipe])
+                          (<= 0 (+  (pipe-gap-x a-pipe) pipe-width)))) pipes))
 
 
 ;TODO 13
@@ -206,7 +208,11 @@
 ; având x-ul egal cu pipe-width + pipe-gap + x-ul celui mai îndepărtat pipe, în raport
 ; cu pasărea.
 (define (add-more-pipes pipes)
-  pipes)
+  (if (> no-pipes (length pipes))
+      (append pipes (list (pipe
+        (+ (+ pipe-gap pipe-width) (get-pipe-x (car (reverse pipes))))
+        (+ added-number (random random-threshold)))))
+  pipes))
 
 ;TODO 14
 ; Vrem ca toate funcțiile implementate anterior legate de pipes să fie apelate
@@ -215,8 +221,10 @@
 ; și va apela cele trei funcții implementate anterior, în această ordine:
 ; move-pipes, urmat de clean-pipes, urmat de add-more pipes.
 (define (next-state-pipes pipes scroll-speed)
-  pipes)
-
+  (add-more-pipes(clean-pipes (move-pipes pipes scroll-speed)))
+  ;(clean-pipes pipes)
+  ;(add-more-pipes pipes))
+)
 ;TODO 17
 ; Creați un getter ce va extrage scorul din starea jocului.
 (define (get-score state)
@@ -248,8 +256,11 @@
 ;TODO 22
 ; Odată creată logică coliziunilor dintre pasăre și pipes, vrem să integrăm
 ; funcția nou implementată în invalid-state?.
-(define (invalid-state? state)
-  #f)
+(define (invalid-state? state-param)
+  (if (or (check-ground-collision (state-bird-struct state-param))
+           (check-pipe-collisions (state-bird-struct state-param) (state-pipe-list state-param)))
+      #t
+      #f))
 
 ;TODO 21
 ; Odată ce am creat pasărea, pipe-urile, scor-ul și coliziunea cu pământul,
@@ -266,7 +277,14 @@
 ; colțul din stânga sus și cel din dreapta jos ale celor două dreptunghiuri
 ; pe care vrem să verificăm coliziunea.
 (define (check-pipe-collisions bird pipes)
-  `codul-tau-aici)
+  (if (null? pipes)
+      #f
+  (match-let ([(bird-struct x y _) bird] [(pipe gap-x gap-y) (car pipes)])
+    (or (not (check-collision-rectangles (make-posn x y)
+                               (make-posn (+ x bird-width) (+ y bird-height))
+                               (make-posn gap-x gap-y)
+                               (make-posn (+ gap-x pipe-width) (+ gap-y pipe-self-gap))))
+    (check-pipe-collisions bird (cdr pipes))))))
 
 (define (check-collision-rectangles A1 A2 B1 B2)
   (match-let ([(posn AX1 AY1) A1]
@@ -291,11 +309,11 @@
 ;TODO 18
 ; Vrem ca next-state să incrementeze scorul cu 0.1 la fiecare cadru.
 (define (next-state state-param)
-  (match-let ([(state bird-struct pipe-list score) state-param])
+  (match-let ([(state bird pipes score) state-param])
     (struct-copy state state-param
-               ;;[bird-struct (next-state-bird b
-               [score (+ score 0.1)]))
-)
+               [bird-struct (next-state-bird bird initial-gravity)]
+               [pipe-list (next-state-pipes pipes initial-scroll-speed)]
+               [score (+ score 0.1)])))
 
 ; draw-frame
 ; draw-frame va fi apelat de big-bang dupa fiecare apel la next-state, pentru a afisa cadrul curent.
@@ -313,6 +331,8 @@
 ; ground -> ground-y si ground-height, acesta va acoperi intreaga latime a ecranului
 ; scor -> text-x si text-y
 ; pipes -> pipe-width si pipe-height
+
+
 (define bird-image (rectangle bird-width bird-height  "solid" "yellow"))
 (define ground-image (rectangle scene-width ground-height "solid" "brown"))
 (define initial-scene (empty-scene scene-width scene-height))
@@ -324,12 +344,58 @@
 	empty-image))
 
 (define (draw-frame state)
-  initial-scene)
+    (match-let ([(bird-struct x y _) (get-bird state)] [pipes (get-pipes state)] [score (get-score state)])
+     ; (place-image (rectangle scene-width scene-height "outline" "black") (quotient scene-width 2) (quotient scene-height 2)
+                   (place-image bird-image (+ x (quotient bird-width 2)) (+ y (quotient bird-height 2))
+
+                                (place-image ground-image (quotient scene-width 2) (+ ground-y (quotient ground-height 2))
+
+                                             (place-image (score-to-image score) text-x text-y 
+
+                                                          (place-pipes (state-pipe-list state)
+
+                                                                       (place-image initial-scene (quotient scene-width 2) (quotient scene-height 2)
+                                                             
+                                                                                    (empty-scene scene-width scene-height)))))))) 
+
+(print (get-pipe-x (car (get-pipes initial-state))))
 
 ; Folosind `place-image/place-images` va poziționa pipe-urile pe scenă.
-(define (place-pipes pipes scene)
-	'your-code-here)
+;lista de rectangles
+(define pipe-image (rectangle pipe-width scene-height "solid" "green"))
+(define gap-image (rectangle pipe-width pipe-self-gap "solid" "white"))
 
+(define (pipe-images-list pipes)
+  (if (null? pipes)
+      pipes
+      (append (list pipe-image) (pipe-images-list (cdr pipes)))))
+
+(define (gap-images-list pipes)
+  (if (null? pipes)
+      pipes
+      (append (list gap-image) (gap-images-list (cdr pipes)))))
+;lista de centre
+(define (pipe-posn-list pipes)
+  (if (null? pipes)
+      pipes
+      (match-let ([(pipe gap-x gap-y) (car pipes)])
+        (append (list [make-posn (+ gap-x (quotient pipe-width 2)) (quotient scene-height 2)])
+                (pipe-posn-list (cdr pipes))))))
+
+(define (gap-posn-list pipes)
+  (if (null? pipes)
+      pipes
+      (match-let ([(pipe gap-x gap-y) (car pipes)])
+        (append (list [make-posn (+ gap-x (quotient pipe-width 2)) (+ gap-y (quotient pipe-self-gap 2))])
+                (gap-posn-list (cdr pipes))))))
+
+(define (place-pipes pipes scene)
+   (place-images (append (gap-images-list pipes) (pipe-images-list pipes)) (append (gap-posn-list pipes) (pipe-posn-list pipes)) scene))
+
+(define (place-gaps pipes scene)
+   (place-images (gap-images-list pipes) (gap-posn-list pipes) scene)
+)
+;******************************************************************************************************
 ; Bonus
 ; Completați abilities.rkt mai întâi, aceste funcții căt, apoi legați
 ; această funcționalitate la jocul inițial.
