@@ -94,9 +94,6 @@
 
 (define initial-state (state birdo (list pipel) 0))
 
- 
-
-
 ;TODO 8
 ; În starea jocului, trebuie să păstrăm informații despre pipes. Pe parcursul jocului,
 ; pipe-urile se vor schimba, unele vor fi șterse și vor fi adăugate altele.
@@ -154,8 +151,7 @@
 (define (next-state-bird-onspace bird momentum)
   (match-let ([(bird-struct _ _ v-y) bird])
   (struct-copy bird-struct bird [v-y (- v-y (+ v-y momentum))])))
-;ce e cu viteza? e bine ca am calculat pe foaie; e inlocuita total cu momentum ca adun si scad v-y
-;frt daca astea erau problema creca picau si alte teste nu doar cand era vorba de desen LASA LE
+
 ; Change
 ; Change va fi responsabil de input-ul de la tastatură al jocului.
 ;TODO 7
@@ -345,56 +341,45 @@
 
 (define (draw-frame state)
     (match-let ([(bird-struct x y _) (get-bird state)] [pipes (get-pipes state)] [score (get-score state)])
-     ; (place-image (rectangle scene-width scene-height "outline" "black") (quotient scene-width 2) (quotient scene-height 2)
-                   (place-image bird-image (+ x (quotient bird-width 2)) (+ y (quotient bird-height 2))
-
-                                (place-image ground-image (quotient scene-width 2) (+ ground-y (quotient ground-height 2))
-
-                                             (place-image (score-to-image score) text-x text-y 
-
-                                                          (place-pipes (state-pipe-list state)
-
-                                                                       (place-image initial-scene (quotient scene-width 2) (quotient scene-height 2)
-                                                             
-                                                                                    (empty-scene scene-width scene-height)))))))) 
-
-(print (get-pipe-x (car (get-pipes initial-state))))
+         (place-image bird-image (+ x (quotient bird-width 2)) (+ y (quotient bird-height 2))
+           (place-image ground-image (quotient scene-width 2) (+ ground-y (quotient ground-height 2))
+              (place-image (score-to-image score) text-x text-y 
+                (place-pipes (state-pipe-list state)
+                  (place-image initial-scene (quotient scene-width 2) (quotient scene-height 2)
+                    (empty-scene scene-width scene-height)))))))) 
 
 ; Folosind `place-image/place-images` va poziționa pipe-urile pe scenă.
 ;lista de rectangles
-(define pipe-image (rectangle pipe-width scene-height "solid" "green"))
-(define gap-image (rectangle pipe-width pipe-self-gap "solid" "white"))
+(define pipe-image (rectangle pipe-width scene-height  "solid" "green"))
 
-(define (pipe-images-list pipes)
+(define (upper-pipe-images-list pipes)
   (if (null? pipes)
       pipes
-      (append (list pipe-image) (pipe-images-list (cdr pipes)))))
+      (append (list pipe-image) (upper-pipe-images-list (cdr pipes)))))
 
-(define (gap-images-list pipes)
+(define (bottom-pipe-images-list pipes)
   (if (null? pipes)
       pipes
-      (append (list gap-image) (gap-images-list (cdr pipes)))))
+      (append (list pipe-image) (bottom-pipe-images-list (cdr pipes)))))
 ;lista de centre
-(define (pipe-posn-list pipes)
+(define (upper-pipe-posn-list pipes)
   (if (null? pipes)
       pipes
       (match-let ([(pipe gap-x gap-y) (car pipes)])
-        (append (list [make-posn (+ gap-x (quotient pipe-width 2)) (quotient scene-height 2)])
-                (pipe-posn-list (cdr pipes))))))
+        (append (list [make-posn (+ gap-x (quotient pipe-width 2)) (- gap-y (quotient pipe-height 2))])
+                (upper-pipe-posn-list (cdr pipes))))))
 
-(define (gap-posn-list pipes)
+(define (bottom-pipe-posn-list pipes)
   (if (null? pipes)
       pipes
       (match-let ([(pipe gap-x gap-y) (car pipes)])
-        (append (list [make-posn (+ gap-x (quotient pipe-width 2)) (+ gap-y (quotient pipe-self-gap 2))])
-                (gap-posn-list (cdr pipes))))))
+        (append (list [make-posn (+ gap-x (quotient pipe-width 2)) (+ (quotient pipe-height 2) (+ gap-y pipe-self-gap))])
+                (bottom-pipe-posn-list (cdr pipes))))))
 
 (define (place-pipes pipes scene)
-   (place-images (append (gap-images-list pipes) (pipe-images-list pipes)) (append (gap-posn-list pipes) (pipe-posn-list pipes)) scene))
+   (place-images (append (bottom-pipe-images-list pipes) (upper-pipe-images-list pipes))
+                 (append (bottom-pipe-posn-list pipes) (upper-pipe-posn-list pipes)) scene))
 
-(define (place-gaps pipes scene)
-   (place-images (gap-images-list pipes) (gap-posn-list pipes) scene)
-)
 ;******************************************************************************************************
 ; Bonus
 ; Completați abilities.rkt mai întâi, aceste funcții căt, apoi legați
