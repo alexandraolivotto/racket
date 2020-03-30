@@ -217,10 +217,7 @@
 ; și va apela cele trei funcții implementate anterior, în această ordine:
 ; move-pipes, urmat de clean-pipes, urmat de add-more pipes.
 (define (next-state-pipes pipes scroll-speed)
-  (add-more-pipes(clean-pipes (move-pipes pipes scroll-speed)))
-  ;(clean-pipes pipes)
-  ;(add-more-pipes pipes))
-)
+  (add-more-pipes(clean-pipes (move-pipes pipes scroll-speed))))
 ;TODO 17
 ; Creați un getter ce va extrage scorul din starea jocului.
 (define (get-score state)
@@ -276,10 +273,10 @@
   (if (null? pipes)
       #f
   (match-let ([(bird-struct x y _) bird] [(pipe gap-x gap-y) (car pipes)])
-    (or (not (check-collision-rectangles (make-posn x y)
+    (or(and (or (< y gap-y) (> (+ y bird-height) (+ gap-y pipe-self-gap) )) (not (check-collision-rectangles (make-posn x y)
                                (make-posn (+ x bird-width) (+ y bird-height))
                                (make-posn gap-x gap-y)
-                               (make-posn (+ gap-x pipe-width) (+ gap-y pipe-self-gap))))
+                               (make-posn (+ gap-x pipe-width) (+ gap-y pipe-self-gap)))))
     (check-pipe-collisions bird (cdr pipes))))))
 
 (define (check-collision-rectangles A1 A2 B1 B2)
